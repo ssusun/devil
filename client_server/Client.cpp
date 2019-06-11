@@ -158,7 +158,7 @@ void Client::Start() {
                         close(sock);
                         isClientwork = 0;
                     } else {
-                        cout << msg.content << endl;
+                        cout << "server message: " << msg.content << endl;
                     }
                 }
                 //子进程写入事件发生，父进程处理并发送服务端
