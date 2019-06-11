@@ -63,6 +63,7 @@ void Server::Start() {
                 struct sockaddr_in client_address;
                 socklen_t client_addrLength = sizeof(struct sockaddr_in);
 
+                //获取连接套接字
                 int client_fd = accept(listener, (struct sockaddr *)&client_address, &client_addrLength);
                 if(client_fd < 0) {
                     printf("epoll wait error: %s(error:%d)\n", strerror(errno), errno);
@@ -71,16 +72,52 @@ void Server::Start() {
                 addfd(epfd, client_fd, true);
 
                 client_list.push_back(client_fd);
-                char message[BUFSIZE];
-                bzero(message, BUFSIZE);
-
-                sprintf(message, "welcome to connect to server, cliend id: %d\n", client_fd);
-                if(send(client_fd, message, BUFSIZE, 0) < 0) {
+                //两种写入buf的方式
+                // char message[BUFSIZE];
+                // bzero(message, BUFSIZE);
+                // sprintf(message, "welcome to connect to server, cliend id: %d\n", client_fd);
+                string message =  "welcome to connect to server, cliend id: " + to_string(client_fd) + "\n";
+                int ret = send(client_fd, message.c_str(), message.length(), 0); 
+                // printf("write %d bytes\n", ret);
+                if(ret < 0) {
                     printf("message send error: %s(error:%d)\n", strerror(errno), errno);
                     exit(0);
                 }
-            } else if(events[i].events & EPOLLIN) {
 
+            } else if(events[i].events & EPOLLIN) {
+                //收到信息并返回打印
+                char buffer[BUFSIZE];
+                bzero(buffer, BUFSIZE);
+                int read_bytes = read(events[i].data.fd, buffer, BUFSIZE);
+                struct Msg msg;
+                memset(&msg, 0, sizeof(msg));
+                memcpy(&msg, buffer, sizeof(msg));
+                printf("read: %d bytes, get message: %s\n", read_bytes, msg.content);
+                //通过epoll out事件发送接受信息给客户端
+                
+                struct epoll_event ev;
+                ev.data.fd = events[i].data.fd;
+                ev.events = EPOLLOUT | EPOLLET;
+                epoll_ctl(epfd, EPOLL_CTL_MOD, events[i].data.fd, &ev);
+
+            } else if(events[i].events & EPOLLOUT) {
+                printf("get out event\n");
+
+                char sendBuffer[BUFSIZE];
+                struct Msg msg;
+                
+                memset(&msg, 0, sizeof(msg));
+                msg.fromID = 0;
+                msg.toID = 0;
+                msg.type = 0;
+                sprintf(msg.content,"get your message");
+                bzero(sendBuffer, BUFSIZE);
+                memcpy(sendBuffer, &msg, sizeof(msg));
+                
+                if(send(events[i].data.fd, sendBuffer, sizeof(sendBuffer), 0) < 0) {
+                    printf("message send error: %s(error:%d)\n", strerror(errno), errno);
+                    exit(0);
+                }
             }
         }
     }

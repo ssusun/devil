@@ -35,4 +35,11 @@ static void addfd(int epfd, int listener, bool isET) {
     epoll_ctl(epfd, EPOLL_CTL_ADD, listener, &ev);
     std::cout << "listener added to epoll" << std::endl;
 }
+
+struct Msg {
+    int type;
+    int fromID;
+    int toID;
+    char content[BUFSIZE];
+};
 #endif
